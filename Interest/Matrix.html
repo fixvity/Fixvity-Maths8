@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Matrix Calculator</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<style>
+*{box-sizing:border-box}
+body{
+  margin:0;
+  font-family:system-ui,-apple-system,Segoe UI,Roboto;
+  background:#f4f6fb;
+  color:#111827;
+}
+.container{
+  max-width:1200px;
+  margin:auto;
+  padding:16px;
+}
+.card{
+  background:#fff;
+  border-radius:14px;
+  box-shadow:0 10px 30px rgba(0,0,0,.08);
+  padding:18px;
+  margin-bottom:16px;
+}
+h1{margin:0;color:#2563eb}
+label{font-weight:600;font-size:14px}
+input,select{
+  width:100%;
+  padding:10px;
+  margin:6px 0 12px;
+  border-radius:8px;
+  border:1px solid #d1d5db;
+  font-size:14px;
+}
+button{
+  width:100%;
+  padding:14px;
+  border:none;
+  border-radius:12px;
+  background:#2563eb;
+  color:#fff;
+  font-weight:700;
+  cursor:pointer;
+}
+button.secondary{
+  background:#eef2ff;
+  color:#111;
+  margin-top:10px;
+}
+.grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:16px;
+}
+@media(max-width:900px){
+  .grid{grid-template-columns:1fr}
+}
+.matrix{
+  display:grid;
+  gap:6px;
+  margin-bottom:10px;
+}
+.matrix input{
+  text-align:center;
+}
+.result-box{
+  background:#f9fafb;
+  border-radius:10px;
+  padding:14px;
+}
+.error{color:#dc2626;font-weight:600}
+.badge{
+  display:inline-block;
+  background:#e0e7ff;
+  color:#1e3a8a;
+  padding:4px 10px;
+  border-radius:999px;
+  font-size:12px;
+  margin-bottom:8px;
+}
+.warn{
+  background:#fff7ed;
+  color:#9a3412;
+  padding:10px;
+  border-radius:8px;
+  margin-bottom:10px;
+}
+</style>
+</head>
+
+<body>
+<div class="container">
+
+<div class="card">
+<h1>Matrix Calculator</h1>
+<p>Linear Algebra Operations with Validation</p>
+
+<label>Operation</label>
+<select id="operation">
+  <option value="add">Addition (A + B)</option>
+  <option value="sub">Subtraction (A − B)</option>
+  <option value="mul">Multiplication (A × B)</option>
+  <option value="scalar">Scalar × A</option>
+  <option value="det">Determinant</option>
+  <option value="inv">Inverse</option>
+  <option value="trans">Transpose</option>
+  <option value="rank">Rank</option>
+</select>
+
+<div class="grid">
+<div>
+<label>Rows (A)</label>
+<input id="rA" value="2">
+<label>Columns (A)</label>
+<input id="cA" value="2">
+<div id="matrixA"></div>
+</div>
+
+<div id="matrixBBlock">
+<label>Rows (B)</label>
+<input id="rB" value="2">
+<label>Columns (B)</label>
+<input id="cB" value="2">
+<div id="matrixB"></div>
+</div>
+</div>
+
+<label id="scalarLabel" style="display:none">Scalar value</label>
+<input id="scalar" value="2" style="display:none">
+
+<button onclick="calculate()">Calculate</button>
+<button class="secondary" onclick="resetAll()">Reset</button>
+</div>
+
+<div class="card">
+<h3>Result</h3>
+<div id="result" class="result-box"></div>
+</div>
+
+</div>
+
+<script>
+function createMatrix(container, r, c){
+  container.innerHTML="";
+  container.className="matrix";
+  container.style.gridTemplateColumns=`repeat(${c},1fr)`;
+  for(let i=0;i<r*c;i++){
+    const inp=document.createElement("input");
+    inp.value="0";
+    container.appendChild(inp);
+  }
+}
+
+function readMatrix(container, r, c){
+  const inputs=[...container.querySelectorAll("input")];
+  let m=[];
+  for(let i=0;i<r;i++){
+    m.push(inputs.slice(i*c,(i+1)*c).map(x=>Number(x.value)));
+  }
+  return m;
+}
+
+function transpose(m){
+  return m[0].map((_,i)=>m.map(r=>r[i]));
+}
+
+function determinant(m){
+  const n=m.length;
+  if(n===1) return m[0][0];
+  if(n===2) return m[0][0]*m[1][1]-m[0][1]*m[1][0];
+  let det=0;
+  for(let i=0;i<n;i++){
+    det+=m[0][i]*determinant(m.slice(1).map(r=>r.filter((_,j)=>j!==i)))*(i%2? -1:1);
+  }
+  return det;
+}
+
+function multiply(A,B){
+  let r=[];
+  for(let i=0;i<A.length;i++){
+    r[i]=[];
+    for(let j=0;j<B[0].length;j++){
+      r[i][j]=A[i].reduce((s,v,k)=>s+v*B[k][j],0);
+    }
+  }
+  return r;
+}
+
+function rank(m){
+  let a=m.map(r=>r.slice());
+  let r=0,c=0;
+  while(r<a.length && c<a[0].length){
+    let i=r;
+    while(i<a.length && a[i][c]===0) i++;
+    if(i<a.length){
+      [a[r],a[i]]=[a[i],a[r]];
+      let v=a[r][c];
+      for(let j=c;j<a[0].length;j++) a[r][j]/=v;
+      for(let k=0;k<a.length;k++){
+        if(k!==r){
+          let f=a[k][c];
+          for(let j=c;j<a[0].length;j++) a[k][j]-=f*a[r][j];
+        }
+      }
+      r++;
+    }
+    c++;
+  }
+  return r;
+}
+
+function inverse(m){
+  const n=m.length;
+  let I=[...Array(n)].map((_,i)=>Array(n).fill(0).map((_,j)=>i===j?1:0));
+  let A=m.map(r=>r.slice());
+
+  for(let i=0;i<n;i++){
+    let f=A[i][i];
+    if(f===0) return null;
+    for(let j=0;j<n;j++){
+      A[i][j]/=f;
+      I[i][j]/=f;
+    }
+    for(let k=0;k<n;k++){
+      if(k!==i){
+        let g=A[k][i];
+        for(let j=0;j<n;j++){
+          A[k][j]-=g*A[i][j];
+          I[k][j]-=g*I[i][j];
+        }
+      }
+    }
+  }
+  return I;
+}
+
+function render(m){
+  return "<pre>"+m.map(r=>r.map(v=>v.toFixed(3)).join("   ")).join("\n")+"</pre>";
+}
+
+function calculate(){
+  const op=operation.value;
+  const rA=+rAInput.value, cA=+cAInput.value;
+}
+
+const rAInput=document.getElementById("rA");
+const cAInput=document.getElementById("cA");
+const rBInput=document.getElementById("rB");
+const cBInput=document.getElementById("cB");
+const matrixA=document.getElementById("matrixA");
+const matrixB=document.getElementById("matrixB");
+const matrixBBlock=document.getElementById("matrixBBlock");
+const scalarInput=document.getElementById("scalar");
+const scalarLabel=document.getElementById("scalarLabel");
+const result=document.getElementById("result");
+
+function refresh(){
+  createMatrix(matrixA,+rAInput.value,+cAInput.value);
+  createMatrix(matrixB,+rBInput.value,+cBInput.value);
+}
+rAInput.onchange=cAInput.onchange=rBInput.onchange=cBInput.onchange=refresh;
+refresh();
+
+operation.onchange=()=>{
+  const o=operation.value;
+  matrixBBlock.style.display=(o==="add"||o==="sub"||o==="mul")?"block":"none";
+  scalarInput.style.display=scalarLabel.style.display=(o==="scalar")?"block":"none";
+};
+
+function calculate(){
+  try{
+    const A=readMatrix(matrixA,+rAInput.value,+cAInput.value);
+    let out="";
+    switch(operation.value){
+      case "add":
+        const B1=readMatrix(matrixB,+rBInput.value,+cBInput.value);
+        out=A.map((r,i)=>r.map((v,j)=>v+B1[i][j]));break;
+      case "sub":
+        const B2=readMatrix(matrixB,+rBInput.value,+cBInput.value);
+        out=A.map((r,i)=>r.map((v,j)=>v-B2[i][j]));break;
+      case "mul":
+        out=multiply(A,readMatrix(matrixB,+rBInput.value,+cBInput.value));break;
+      case "scalar":
+        out=A.map(r=>r.map(v=>v*Number(scalarInput.value)));break;
+      case "det":
+        result.innerHTML=`<strong>Determinant:</strong> ${determinant(A).toFixed(6)}`;return;
+      case "inv":
+        const invA=inverse(A);
+        if(!invA){result.innerHTML="<span class='error'>Matrix not invertible</span>";return;}
+        out=invA;break;
+      case "trans":
+        out=transpose(A);break;
+      case "rank":
+        result.innerHTML=`<strong>Rank:</strong> ${rank(A)}`;return;
+    }
+    result.innerHTML=render(out);
+  }catch{
+    result.innerHTML="<span class='error'>Invalid matrix operation</span>";
+  }
+}
+
+function resetAll(){
+  result.innerHTML="";
+}
+</script>
+</body>
+</html>
